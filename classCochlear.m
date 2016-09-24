@@ -55,8 +55,8 @@ classdef classCochlear < handle & classCochlearSupport
             [y,Fs] = audioread(name);
             % resample if required so that the sampling frequency is 
             % fs +/- fTolerance
-            if abs(Fs - fTolerance) > 0.1
-                y = resample(y, fSample, Fs);
+            if abs(Fs - obj.fTolerance) > 0.1
+                y = resample(y, obj.fSample, Fs);
             end
             result = y;
         end
@@ -75,18 +75,51 @@ classdef classCochlear < handle & classCochlearSupport
 
             % insert your code here
             % Hann window filter
-            hannFilter = hann(fSample);
-            
+            hannFilter = hann(length(wav));
+            % FFT
+            frequency = fft(wav .* hannFilter);
+            wav = ifft(frequency);
             if (type == obj.procF0f1f2)
                 %
                 % extratc formants and build FTM
                 % 
             
                 % insert your code here
+                % How many epochs
+                N = obj.numElectrodes / obj.numFormants;
+                pointsPerEpoch = length(wav)/N;
+                stimulus = zeros
+                % Ditch any decimals if length(wav)/N is not an integer!
+                pointsPerEpoch = floor(pointsPerEpoch);
+                for i = 1:N
+                    % get an epoch 
+                    epoch(i, :) = wav(((i-1)*pointsPerEpoch) + 1:i*pointsPerEpoch);
+                end
+                % find the formants
+                % the following is a 'rule of thumb' of formant estimation
+                numberOfCoefficients = 2 + obj.fSample/1000;
+                ffreq = zeros(N, obj.numFormants);
+                for i = 1:N
+                    % determine a polynomial finding the spectral peaks
+                    % of the epoch using lpc
+                    spectralPeaks = lpc(epoch(i,:)', numberOfCoefficients);
+                    r = roots(spectralPeaks); % find roots of this polynomial
+                    r = r(imag(r) > 0.01); % only look for + roots up to fs/2
+                    % covert the complex roots to Hz and sort from low to
+                    % high
+                    formants = sort(atan2(imag(r), real(r))*obj.fSample/(2*pi));
+                    % print first three formants (the reset are still stored
+                    % in ffreq) 
+                    amplitude(i) = max(epoch(i,:));
+                    for j = 1: obj.numFormants
+                        ffreq(i, j) = formants(j); % save for later
+%                         fprintf( 'Epoch(%d) ,Formant(%d) = %.1f Hz\n', i,j, formants(j));
+                    end
+                end
                 
+                    
 
-                % FFT
-                frequency = fft(wav .* hannFilter);
+
                 
                 
             elseif (type == obj.procSpeak) || (type == obj.procCIS)
