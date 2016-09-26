@@ -74,11 +74,7 @@ classdef classCochlear < handle & classCochlearSupport
             db=dbstack(); fprintf('    >>%s\n', db(1).name);
 
             % insert your code here
-            % Hann window filter
-            hannFilter = hann(length(wav));
-            % FFT
-            frequency = fft(wav .* hannFilter);
-            wav = ifft(frequency);
+            % FTM = zeros()
             if (type == obj.procF0f1f2)
                 %
                 % extratc formants and build FTM
@@ -86,9 +82,9 @@ classdef classCochlear < handle & classCochlearSupport
             
                 % insert your code here
                 % How many epochs
-                N = obj.numElectrodes / obj.numFormants;
-                pointsPerEpoch = length(wav)/N;
-                stimulus = zeros
+                N = floor(length(wav) / obj.fSample / 0.002);
+                pointsPerEpoch = length(wav) / N;
+                FTM = zeros(obj.numElectrodes, N);
                 % Ditch any decimals if length(wav)/N is not an integer!
                 pointsPerEpoch = floor(pointsPerEpoch);
                 for i = 1:N
@@ -98,25 +94,44 @@ classdef classCochlear < handle & classCochlearSupport
                 % find the formants
                 % the following is a 'rule of thumb' of formant estimation
                 numberOfCoefficients = 2 + obj.fSample/1000;
+                % parameters initialization
                 ffreq = zeros(N, obj.numFormants);
+                amplitude = zeros(N);
                 for i = 1:N
+                    % skip all zeros epoch  
+                    if (sum(epoch(i, :)) == 0 )
+                        continue;
+                    end
                     % determine a polynomial finding the spectral peaks
                     % of the epoch using lpc
                     spectralPeaks = lpc(epoch(i,:)', numberOfCoefficients);
                     r = roots(spectralPeaks); % find roots of this polynomial
                     r = r(imag(r) > 0.01); % only look for + roots up to fs/2
+                    % when the r is empty, skip
+                    if length(r) < 1
+                        continue;
+                    end
                     % covert the complex roots to Hz and sort from low to
                     % high
                     formants = sort(atan2(imag(r), real(r))*obj.fSample/(2*pi));
                     % print first three formants (the reset are still stored
                     % in ffreq) 
                     amplitude(i) = max(epoch(i,:));
-                    for j = 1: obj.numFormants
-                        ffreq(i, j) = formants(j); % save for later
-%                         fprintf( 'Epoch(%d) ,Formant(%d) = %.1f Hz\n', i,j, formants(j));
-                    end
+                    ffreq(i, :) = formants(1: obj.numFormants);
                 end
                 
+                electrodeRange = linspace(obj.fSample/2, 0 ,obj.numElectrodes + 1);
+                for i = 1:N
+                    for j = 1:obj.numFormants
+                        for range = 1:obj.numElectrodes
+                            if electrodeRange(range) <= ffreq(i, j) && ffreq(i, j) <= electrodeRange(range + 1)
+                                FTM(i, range) = amplitude(i);
+                                break;
+                            end
+                        end
+                    end
+                end
+
                     
 
 
@@ -128,12 +143,21 @@ classdef classCochlear < handle & classCochlearSupport
                 %
             
                 % insert your code here
-            
+                segments = obj.tSample / (1 - obj.frameOverlap) * obj.fSample;
+                overlappedSignal = buffer(wav, segments, segments * obj.frameOverlap);
+                N = length(overlappedSignal);
+                % Hann window filter
+%               bsxfun
+                hannFilter = repmat(hann(segments), [1, N]);
+                % FFT
+                frequency = fft(overlappedSignal .* hannFilter, obj.numElectrodes * 2);
+                FTM = frequency(1:obj.numElectrodes, :);
             else 
                 error('Unknown type (%d)', type)
             end
             
             result = []; % change to return your FTM
+            result = FTM;
         end
         
         function result = process(obj, data, type)
