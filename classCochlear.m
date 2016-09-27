@@ -151,7 +151,7 @@ classdef classCochlear < handle & classCochlearSupport
                 hannFilter = repmat(hann(segments), [1, N]);
                 % FFT
                 frequency = fft(overlappedSignal .* hannFilter, obj.numElectrodes * 2);
-                FTM = frequency(1:obj.numElectrodes, :);
+                FTM = abs(frequency(1:obj.numElectrodes, :));
             else 
                 error('Unknown type (%d)', type)
             end
@@ -194,11 +194,11 @@ classdef classCochlear < handle & classCochlearSupport
 
                 for i = 1:size(data, 1)
                    for j = 1:size(data, 2)
-                        if(testmean < data(i, j))
+                        if(testmean(i) < data(i, j))
                             if (data(i, j) > 1)
                                 result1(i, j) = 1;
                             else
-                                result1(i, j) = testmean;
+                                result1(i, j) = testmean(i);
                             end
                         else
                             result1(i, j) = 0;
