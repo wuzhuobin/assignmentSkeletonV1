@@ -96,7 +96,7 @@ classdef classCochlear < handle & classCochlearSupport
                 numberOfCoefficients = 2 + obj.fSample/1000;
                 % parameters initialization
                 ffreq = zeros(N, obj.numFormants);
-                amplitude = zeros(N);
+                amplitude = zeros(N,1);
                 for i = 1:N
                     % skip all zeros epoch  
                     if (sum(epoch(i, :)) == 0 )
@@ -116,16 +116,16 @@ classdef classCochlear < handle & classCochlearSupport
                     formants = sort(atan2(imag(r), real(r))*obj.fSample/(2*pi));
                     % print first three formants (the reset are still stored
                     % in ffreq) 
-                    amplitude(i) = max(epoch(i,:));
+                    amplitude(i, 1) = max(epoch(i,:));
                     ffreq(i, :) = formants(1: obj.numFormants);
                 end
                 
-                electrodeRange = linspace(obj.fSample/2, 0 ,obj.numElectrodes + 1);
+                electrodeRange = linspace(0, obj.fSample/2 ,obj.numElectrodes + 1);
                 for i = 1:N
                     for j = 1:obj.numFormants
                         for range = 1:obj.numElectrodes
                             if electrodeRange(range) <= ffreq(i, j) && ffreq(i, j) <= electrodeRange(range + 1)
-                                FTM(i, range) = amplitude(i);
+                                FTM(range, i) = amplitude(i);
                                 break;
                             end
                         end
@@ -179,6 +179,9 @@ classdef classCochlear < handle & classCochlearSupport
                 % 
             
                 % insert your code here
+                result1 = data;
+                
+
             
             elseif (type == obj.procSpeak)
                 %
@@ -186,20 +189,38 @@ classdef classCochlear < handle & classCochlearSupport
                 %
 
                 % insert your code here
+                result1 = data;
+                testmean = mean(data(:, 5:20));
+
+                for i = 1:size(data, 1)
+                   for j = 1:size(data, 2)
+                        if(testmean < data(i, j))
+                            if (data(i, j) > 1)
+                                result1(i, j) = 1;
+                            else
+                                result1(i, j) = testmean;
+                            end
+                        else
+                            result1(i, j) = 0;
+                        end
+                   end 
+                end
                 
             elseif (type == obj.procCIS)
                 %
                 % Implement CIS processing.
                 %
-
+                
             
                 % insert your code here
+                result1 = data;
             
             else 
                 error('Unknown type (%d)', type)
             end
 
             result = []; % change to return your FTM
+            result = result1;
         end
         
         function result = applyDR(obj, ftm)
@@ -212,8 +233,11 @@ classdef classCochlear < handle & classCochlearSupport
             db=dbstack(); fprintf('    >>%s\n', db(1).name);
 
             % insert your code here
-
+            Amax = obj.maxOutput;
+            Amin = Amax / sqrt(obj.dynamicRange);
+            result1 = (Amax - Amin) * ftm + Amin;
             result = []; % change to return your FTM
+            result = result1;
         end
         
         function result = plotSignal(obj, speech)
@@ -228,6 +252,9 @@ classdef classCochlear < handle & classCochlearSupport
             result  = figure;
             
             % insert your code here
+            x = 1:size(speech, 1);
+            x = x / obj.fSample;
+            plot(x, speech);
             
         end
         function result = plotElectrodogram(obj, ftm, procType)
@@ -241,7 +268,8 @@ classdef classCochlear < handle & classCochlearSupport
             db=dbstack(); fprintf('    >>%s\n', db(1).name);
 
             result = figure;
-            
+            imagesc(ftm);
+            colorbar;
             % insert your code here
             
         end
