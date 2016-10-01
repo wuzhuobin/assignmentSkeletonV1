@@ -123,6 +123,38 @@ classdef classCochlear < handle & classCochlearSupport
                 electrodeRange = linspace(0, obj.fSample/2 ,obj.numElectrodes + 1);
                 for i = 1:N
                     for j = 1:obj.numFormants
+                        % if 0 < ffreq(i, j) && ffreq(i, j) < 500
+                        %     FTM(1, i) = amplitude(i);
+                        % elseif 500 <= ffreq(i, j) && ffreq(i, j) <= 1000
+                        %     FTM(2, i) = amplitude(i);
+                        % elseif 1000 <= ffreq(i, j) && ffreq(i, j) <= 1500
+                        %     FTM(3, i) = amplitude(i);
+                        % elseif 1500 <= ffreq(i, j) && ffreq(i, j) <= 2000
+                        %     FTM(4, i) = amplitude(i);
+                        % elseif 2000 <= ffreq(i, j) && ffreq(i, j) <= 2500
+                        %     FTM(5, i) = amplitude(i);
+                        % elseif 2500 <= ffreq(i, j) && ffreq(i, j) <= 3000
+                        %     FTM(6, i) = amplitude(i);
+                        % elseif 3000 <= ffreq(i, j) && ffreq(i, j) <= 3500
+                        %     FTM(7, i) = amplitude(i);
+                        % elseif 3500 <= ffreq(i, j) && ffreq(i, j) <= 4000
+                        %     FTM(8, i) = amplitude(i);
+                        % elseif 4000 <= ffreq(i, j) && ffreq(i, j) <= 4500
+                        %     FTM(9, i) = amplitude(i);
+                        % elseif 4500 <= ffreq(i, j) && ffreq(i, j) <= 5000
+                        %     FTM(10, i) = amplitude(i);
+                        % elseif 5000 <= ffreq(i, j) && ffreq(i, j) <= 5500
+                        %     FTM(11, i) = amplitude(i);
+                        % elseif 5500 <= ffreq(i, j) && ffreq(i, j) <= 6000
+                        %     FTM(12, i) = amplitude(i);
+                        % elseif 6000 <= ffreq(i, j) && ffreq(i, j) <= 6500
+                        %     FTM(13, i) = amplitude(i);
+                        % elseif 6500 <= ffreq(i, j) && ffreq(i, j) <= 7000
+                        %     FTM(14, i) = amplitude(i);
+                        % elseif 7000 <= ffreq(i, j) && ffreq(i, j) <= 7500
+                        %     FTM(15, i) = amplitude(i);
+                        % elseif 7500 <= ffreq(i, j) && ffreq(i, j) <= 8000
+                        %     FTM(16, i) = amplitude(i);                            
                         for range = 1:obj.numElectrodes
                             if electrodeRange(range) <= ffreq(i, j) && ffreq(i, j) <= electrodeRange(range + 1)
                                 FTM(range, i) = amplitude(i);
@@ -150,8 +182,20 @@ classdef classCochlear < handle & classCochlearSupport
 %               bsxfun
                 hannFilter = repmat(hann(segments), [1, N]);
                 % FFT
-                frequency = fft(overlappedSignal .* hannFilter, obj.numElectrodes * 2);
-                FTM = abs(frequency(1:obj.numElectrodes, :));
+                % frequency = fft(overlappedSignal .* hannFilter, obj.numElectrodes * 2);
+                % FTM = abs(frequency(1:obj.numElectrodes, :));
+                FTM = zeros(obj.numElectrodes, N);
+                frequency = abs(fft(overlappedSignal .* hannFilter));
+                electrodeRange = linspace(0, segments/2, obj.numElectrodes + 1);
+                % for i = 1:size(frequency, 1)
+                    for j = 1:size(frequency, 2)
+                        for range = 1:obj.numElectrodes
+                            FTM(range, j) = 2 * sum(frequency(electrodeRange(range)+1 :electrodeRange(range+ 1), j), 1);
+                        end
+                    end
+                % end
+
+
             else 
                 error('Unknown type (%d)', type)
             end
@@ -210,7 +254,12 @@ classdef classCochlear < handle & classCochlearSupport
                 %
                 % Implement CIS processing.
                 %
-                
+                m = [100 200 20 20 ...
+                0.5 0.5 0.5 0.5 ...
+                0.5 0.5 0.5 0.5 ...
+                0.5 0.5 0.5 0.5]';
+                data = data .* repmat(m, 1, length(data));
+
             
                 % insert your code here
                 result1 = data;
@@ -235,6 +284,7 @@ classdef classCochlear < handle & classCochlearSupport
             % insert your code here
             Amax = obj.maxOutput;
             Amin = Amax / sqrt(obj.dynamicRange);
+            ftm(ftm < 0.2) = 0;
             result1 = (Amax - Amin) * ftm + Amin;
             result = []; % change to return your FTM
             result = result1;
